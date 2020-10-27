@@ -1,0 +1,25 @@
+{{ define "slack.my.title" -}}
+    {{ if eq .Status "resolved" }}
+    [OK]
+    {{- else -}}
+    [Alerting]
+    {{- end -}}
+    {{- if .CommonAnnotations.summary -}}
+        {{- .CommonAnnotations.summary -}}
+    {{- else -}}
+        {{- with index .Alerts 0 -}}
+            {{- .Annotations.summary -}}
+        {{- end -}}
+    {{- end -}}
+{{- end }}
+{{ define "slack.my.text" -}}
+    {{ if eq .Status "resolved" }}
+        {{- range $i, $alert := .Alerts }}
+            {{- "\n" -}} {{- .Annotations.description_resolved -}}
+        {{- end -}}
+    {{- else -}}
+        {{- range $i, $alert := .Alerts }}
+            {{- "\n" -}} {{- .Annotations.description -}}
+        {{- end -}}
+    {{- end -}}
+{{- end }}
