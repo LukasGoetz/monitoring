@@ -1,0 +1,57 @@
+groups:
+- name: Filesystem Alerts
+  rules:
+  - record: instance:node_filesystem_avail    
+    expr: (100 - ((node_filesystem_avail_bytes{job="host-based-metrics", group="database", mountpoint=~"/.+",fstype=~"ext4|xfs"} * 100) / node_filesystem_size_bytes {job="host-based-metrics", group="database", mountpoint=~"/.+",fstype=~"ext4|xfs"}))
+  - record: instance:up                               
+    expr: up{job="host-based-metrics"} ==bool 0
+  - record: instance:node_filesystem_avail:threshold
+    expr: (node_filesystem_avail_bytes{job="host-based-metrics", mountpoint="/"} / node_filesystem_size_bytes{job="host-based-metrics", mountpoint="/"}) <=bool 0.2
+  - record: instance:node_memory_avail:threshold
+    expr: (node_memory_MemAvailable_bytes{job="host-based-metrics"} / node_memory_MemTotal_bytes{job="host-based-metrics"}) <=bool 0.2
+  - record: instance:cpu_avg:threshold
+    expr: (1-avg(irate(node_cpu_seconds_total{job="host-based-metrics",mode="idle"}[5m])) by (instance,group,server_name)) >=bool 0.8
+  - record: instance:node_filesystem_avail:ratio
+    expr: node_filesystem_avail_bytes{device=~"(/dev/.+|tank/dataset)"} / node_filesystem_size_bytes{device=~"(/dev/.+|tank/dataset)"}
+- name: Host Based Alerts
+  rules:
+  - alert: Node Exporter Alert
+    expr: up{job="host-based-metrics"} == 0
+    for: 3m
+    labels:
+      severity: warning
+    annotations:
+      summary: ' Node Exporter Alert'
+      description: 'Failed to read host-based metrics on {{ $labels.instance }} for more than 3 minutes. Node exporter seems down.'
+      description_resolved: 'Successfully read host-based metrics on {{ $labels.instance }}. Node exporter up again.'
+  - alert: Low Disk Space Alert
+    expr: instance:node_filesystem_avail:ratio{fstype=~"(ext.|xfs|zfs)",job="host-based-metrics"} * 100 <= 10
+    for: 3m
+    labels:
+      severity: warning
+    annotations:
+      summary: ' Low Disk Space Alert'
+      description: 'Disk mounted on {{ $labels.mountpoint }} {{ $labels.instance }} has less than 10 % of free space left.'
+      description_resolved: 'Disk mounted on {{ $labels.mountpoint }} {{ $labels.instance }} has more than 10 % of free space left again.'
+- name: App Based Alerts
+  rules:
+  - alert: i2b2 Alert
+    expr: absent(container_memory_usage_bytes{name="i2b2pg", instance="10.30.80.55:9999"}) or
+          absent(container_memory_usage_bytes{name="i2b2web", instance="10.30.80.55:9999"}) or
+          absent(container_memory_usage_bytes{name="i2b2wildfly", instance="10.30.80.55:9999"})
+    for: 3m
+    labels:
+      severity: warning
+    annotations:
+      summary: ' i2b2 down'
+      description: 'Failed to read app-based metrics from i2b2 on {{ $labels.instance }} for more than 3 minutes. i2b2 seems down.'
+      description_resolved: 'Read successfully app-based metrics from i2b2 on {{ $labels.instance }}. i2b2 up again.'
+  - alert: Postgres Alert
+    expr: absent(pg_database_size_bytes{datname="postgres", instance="10.30.80.54:9187"})
+    for: 3m
+    labels:
+      severity: warning
+    annotations:
+      summary: ' postgres down'
+      description: 'Failed to read app-based metrics from Postgres on {{ $labels.instance }} for more than 3 minutes. Postgres seems down.'
+      description_resolved: 'Read successfully app-based metrics from Postgres on {{ $labels.instance }}. Postgres up again.'

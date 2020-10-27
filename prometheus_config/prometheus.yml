@@ -1,0 +1,47 @@
+global:
+  scrape_interval: 30s
+
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      - localhost:9093
+
+rule_files:
+  - 'prometheus_rules.yml'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'docker-metrics'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['10.30.80.55:9999']
+        labels:
+          server_name: 'fl-prod-i2b2'
+ 
+  - job_name: 'psql-metrics'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['10.30.80.54:9187']
+        labels:
+          server_name: 'fl-prod-fhir-database'
+
+  - job_name: 'host-based-metrics'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['10.30.80.53:9100']
+        labels:
+          server_name: 'prod-prometheus'
+          group: 'prometheus'
+      - targets: ['10.30.80.54:9100']
+        labels:
+          server_name: 'fl-prod-fhir-database'
+          group: 'database'
+      - targets: ['10.30.80.55:9100']
+        labels:
+          server_name: 'fl-prod-i2b2'
+          group: 'research_repo'
